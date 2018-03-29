@@ -1,6 +1,8 @@
 import argparse
 from botocore.exceptions import ClientError
 import boto3
+import json
+import time
 
 def release_elastic_ips(ec2):
     resp = ec2.describe_addresses()
@@ -49,8 +51,11 @@ def list_instances(ec2):
 
 def terminate_instances(ec2):
     ids = get_running_instances(ec2)
-    print('Instances with ids - {} will be terminated...'.format(ids))
-    ec2.terminate_instances(InstanceIds=ids)
+    if len(ids) > 0:
+        print('Instances with ids - {} will be terminated...'.format(ids))
+        ec2.terminate_instances(InstanceIds=ids)
+    else:
+        print("No running instance")
 
 def cancel_fleet_requests(ec2):
     resp = ec2.describe_spot_fleet_requests()
@@ -66,10 +71,32 @@ def cancel_fleet_requests(ec2):
     else:
         print("No active request")
 
+def fleet_request(ec2, configf, count, val_from="", val_until=""):
+    with open(configf) as f:
+        config = json.loads(f.read())
+    if count > 0:
+        config['TargetCapacity'] = count
+    if not val_from == "":
+        config['ValidFrom'] = val_from
+    if not val_until == "":
+        config['ValidUntil'] = val_until
+    
+    resp = ec2.request_spot_fleet(SpotFleetRequestConfig=config)
+    check = 0
+
+    while check < 15:
+        r = ec2.describe_spot_fleet_instances(SpotFleetRequestId=resp['SpotFleetRequestId'])
+        if len(r['ActiveInstances']) == config['TargetCapacity']:
+            break
+        time.sleep(10)
+        check = check + 1
+
+    print('Request has been fulfilled')
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--launch", default=False,
-                        help="launch instances")
+    parser.add_argument("--fleet_request", default=False, action="store_true",
+                        help="make spot fleet request")
     #launch related flags
     parser.add_argument("--count", default=0, type=int,
                         help="number of spot instances")
@@ -96,8 +123,8 @@ if __name__ == "__main__":
 
     ec2 = boto3.client('ec2')
 
-    if args.launch:
-        launch_instances(args['config'], args['count'])
+    if args.fleet_request:
+        fleet_request(ec2, args.config, args.count, val_from=args.ValidFrom, val_until=args.ValidUntil)
     elif args.release_elastic_ips:
         release_elastic_ips(ec2)
     elif args.map_elastic_ips:
