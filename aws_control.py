@@ -23,7 +23,6 @@ def get_running_instances(ec2):
                 instance_ids.append(ins['InstanceId'])
     return instance_ids
 
-
 def map_elastic_ips(ec2):
     instance_ids = get_running_instances(ec2)
     resp = ec2.describe_addresses()
@@ -53,10 +52,35 @@ def terminate_instances(ec2):
     print('Instances with ids - {} will be terminated...'.format(ids))
     ec2.terminate_instances(InstanceIds=ids)
 
+def cancel_fleet_requests(ec2):
+    resp = ec2.describe_spot_fleet_requests()
+    configs = resp['SpotFleetRequestConfigs']
+    ids = []
+    for config in configs:
+        if config['SpotFleetRequestState'] == 'active':
+            ids.append(config['SpotFleetRequestId'])
+    
+    if len(ids) > 0:
+        println('Requests with {} ids will be cancelled'.format(ids))
+        ec2.cancel_spot_fleet_requests(SpotFleetRequestIds=ids, TerminateInstances=True)
+    else:
+        print("No active request")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--request", default=0, type=int,
-            help="if request is greater than 0, then request spot instances")
+    parser.add_argument("--launch", default=False,
+            help="launch instances")
+    #launch related flags
+    parser.add_argument("--count", default=0, type=int,
+            help="number of spot instances")
+    parser.add_argument("--config", default="config.json",
+            help="launch template for the spot requests")
+    parser.add_argument("--ValidFrom", default="",
+            help="if specified use this datetime")
+    parser.add_argument("--ValidUntil", default="",
+            help="if specified use this datetime")
+
+    #end of launch related flags
     parser.add_argument("--release_elastic_ips", default=False, action="store_true",
             help="release all elastic ips")
     parser.add_argument("--map_elastic_ips", default=False, action="store_true",
@@ -65,13 +89,15 @@ if __name__ == "__main__":
             help="list instances and their status")
     parser.add_argument("--terminate_instances", default=False, action="store_true",
             help="terminate all running instances")
+    parser.add_argument("--cancel_fleet", default=False, action="store_true",
+            help="cancel all fleet requests")
 
     args = parser.parse_args()
 
     ec2 = boto3.client('ec2')
 
-    if args.request > 0:
-        print("Nothing")
+    if args.launch:
+        launch_instances(args['config'], args['count'])
     elif args.release_elastic_ips:
         release_elastic_ips(ec2)
     elif args.map_elastic_ips:
@@ -80,3 +106,5 @@ if __name__ == "__main__":
         list_instances(ec2)
     elif args.terminate_instances:
         terminate_instances(ec2)
+    elif args.cancel_fleet:
+        cancel_fleet_requests(ec2)
