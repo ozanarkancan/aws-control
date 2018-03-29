@@ -15,6 +15,16 @@ def release_elastic_ips(ec2):
         except ClientError as e:
             print(e)
 
+def list_ips(ec2):
+    resp = ec2.describe_addresses()
+
+    addresses = resp['Addresses']
+    if len(addresses) == 0:
+        print('No ip found')
+
+    for add in addresses:
+        print('PublicIp: ', add['PublicIp'])
+
 def get_running_instances(ec2):
     resp = ec2.describe_instances()
     instance_ids = []
@@ -123,6 +133,8 @@ if __name__ == "__main__":
                         help="terminate all running instances")
     parser.add_argument("--cancel_fleet", default=False, action="store_true",
                         help="cancel all fleet requests")
+    parser.add_argument("--list_elastic_ips", default=False, action="store_true",
+                        help="cancel all fleet requests")
 
     args = parser.parse_args()
 
@@ -140,3 +152,5 @@ if __name__ == "__main__":
         terminate_instances(ec2)
     elif args.cancel_fleet:
         cancel_fleet_requests(ec2)
+    elif args.list_elastic_ips:
+        list_ips(ec2)
