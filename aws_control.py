@@ -1,6 +1,6 @@
 import argparse
-import boto3
 from botocore.exceptions import ClientError
+import boto3
 
 def release_elastic_ips(ec2):
     resp = ec2.describe_addresses()
@@ -8,7 +8,7 @@ def release_elastic_ips(ec2):
     addresses = resp['Addresses']
     for add in addresses:
         try:
-            response = ec2.release_address(AllocationId=add['AllocationId'])
+            ec2.release_address(AllocationId=add['AllocationId'])
             print('{} released'.format(add['AllocationId']))
         except ClientError as e:
             print(e)
@@ -59,9 +59,9 @@ def cancel_fleet_requests(ec2):
     for config in configs:
         if config['SpotFleetRequestState'] == 'active':
             ids.append(config['SpotFleetRequestId'])
-    
+
     if len(ids) > 0:
-        println('Requests with {} ids will be cancelled'.format(ids))
+        print('Requests with {} ids will be cancelled'.format(ids))
         ec2.cancel_spot_fleet_requests(SpotFleetRequestIds=ids, TerminateInstances=True)
     else:
         print("No active request")
@@ -69,28 +69,28 @@ def cancel_fleet_requests(ec2):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--launch", default=False,
-            help="launch instances")
+                        help="launch instances")
     #launch related flags
     parser.add_argument("--count", default=0, type=int,
-            help="number of spot instances")
+                        help="number of spot instances")
     parser.add_argument("--config", default="config.json",
-            help="launch template for the spot requests")
+                        help="launch template for the spot requests")
     parser.add_argument("--ValidFrom", default="",
-            help="if specified use this datetime")
+                        help="if specified use this datetime")
     parser.add_argument("--ValidUntil", default="",
-            help="if specified use this datetime")
+                        help="if specified use this datetime")
 
     #end of launch related flags
     parser.add_argument("--release_elastic_ips", default=False, action="store_true",
-            help="release all elastic ips")
+                        help="release all elastic ips")
     parser.add_argument("--map_elastic_ips", default=False, action="store_true",
-            help="map elastic ips to the running instances. if new ips are required they will be generated")
+                        help="map elastic ips to the running instances. if new ips are required they will be generated")
     parser.add_argument("--list_instances", default=False, action="store_true",
-            help="list instances and their status")
+                        help="list instances and their status")
     parser.add_argument("--terminate_instances", default=False, action="store_true",
-            help="terminate all running instances")
+                        help="terminate all running instances")
     parser.add_argument("--cancel_fleet", default=False, action="store_true",
-            help="cancel all fleet requests")
+                        help="cancel all fleet requests")
 
     args = parser.parse_args()
 
