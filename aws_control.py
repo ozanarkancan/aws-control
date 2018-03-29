@@ -13,7 +13,7 @@ def release_elastic_ips(ec2):
         except ClientError as e:
             print(e)
 
-def map_elastic_ips(ec2):
+def get_running_instances(ec2):
     resp = ec2.describe_instances()
     instance_ids = []
     reservations = resp['Reservations']
@@ -21,7 +21,11 @@ def map_elastic_ips(ec2):
         for ins in res['Instances']:
             if ins['State']['Name'] == 'running':
                 instance_ids.append(ins['InstanceId'])
+    return instance_ids
 
+
+def map_elastic_ips(ec2):
+    instance_ids = get_running_instances(ec2)
     resp = ec2.describe_addresses()
     addresses = resp['Addresses']
     required_new_addresses = len(instance_ids) - len(addresses)
@@ -37,13 +41,30 @@ def map_elastic_ips(ec2):
         response = ec2.associate_address(AllocationId=elastic_ip[0], InstanceId=ins_id)
         print('{} , {}, {}'.format(elastic_ip[0], elastic_ip[1], ins_id))
 
+def list_instances(ec2):
+    resp = ec2.describe_instances()
+    reservations = resp['Reservations']
+    for res in reservations:
+        for ins in res['Instances']:
+            print('Instance id: {}, Status: {}'.format(ins['InstanceId'], ins['State']['Name']))
+
+def terminate_instances(ec2):
+    ids = get_running_instances(ec2)
+    print('Instances with ids - {} will be terminated...'.format(ids))
+    ec2.terminate_instances(InstanceIds=ids)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--request", default=0, type=int,
             help="if request is greater than 0, then request spot instances")
     parser.add_argument("--release_elastic_ips", default=False, action="store_true",
             help="release all elastic ips")
-    parser.add_argument("--map_elastic_ips", default=False, action="store_true")
+    parser.add_argument("--map_elastic_ips", default=False, action="store_true",
+            help="map elastic ips to the running instances. if new ips are required they will be generated")
+    parser.add_argument("--list_instances", default=False, action="store_true",
+            help="list instances and their status")
+    parser.add_argument("--terminate_instances", default=False, action="store_true",
+            help="terminate all running instances")
 
     args = parser.parse_args()
 
@@ -55,3 +76,7 @@ if __name__ == "__main__":
         release_elastic_ips(ec2)
     elif args.map_elastic_ips:
         map_elastic_ips(ec2)
+    elif args.list_instances:
+        list_instances(ec2)
+    elif args.terminate_instances:
+        terminate_instances(ec2)
