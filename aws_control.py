@@ -83,15 +83,20 @@ def fleet_request(ec2, configf, count, val_from="", val_until=""):
     
     resp = ec2.request_spot_fleet(SpotFleetRequestConfig=config)
     check = 0
+    filled = False
 
     while check < 15:
         r = ec2.describe_spot_fleet_instances(SpotFleetRequestId=resp['SpotFleetRequestId'])
         if len(r['ActiveInstances']) == config['TargetCapacity']:
+            filled = True
             break
         time.sleep(10)
         check = check + 1
-
-    print('Request has been fulfilled')
+    
+    if filled:
+        print('Request has been fulfilled')
+    else:
+        print('There might be a problem')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
